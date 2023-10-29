@@ -8,7 +8,7 @@ cdk init app --language typescript
 bin: エントリーポイント  
 lib: インフラのコアコード  
 
-## tsからjsにビルド
+## tsからjsにビルド(実行する必要なし。cdk deployの時にts-nodeで直接実行されるので)
 ```
 npm run build
 ```
@@ -28,7 +28,14 @@ cdk synth
 cdk bootstrap
 ```
 
-## すべてのスタックをデプロイ
+## すべてのcdkをデプロイ
 ```
 cdk deploy --all
+cdk deploy STACK_NAME
+```
+
+## cdkに紐づくすべてのリソースを削除
+```
+cdk destroy --all
+cdk destroy STACK_NAME
 ```
