@@ -4,9 +4,21 @@ import {
   aws_s3_deployment as s3Deploy,
   aws_cloudfront as cloudfront,
   aws_iam as iam,
+  aws_route53 as route53,
+  aws_certificatemanager as acm,
 } from "aws-cdk-lib"
+import * as targets from "aws-cdk-lib/aws-route53-targets"
+
 export class TranscriptionCdkStack extends cdk.Stack {
-  constructor(scope: cdk.App, id: string, props?: cdk.StackProps) {
+  constructor(
+    scope: cdk.App,
+    id: string,
+    domain: string,
+    subDomain: string,
+    hostZoneId: string,
+    certificate: acm.Certificate,
+    props?: cdk.StackProps
+  ) {
     super(scope, id, props)
 
     // バケット作成
@@ -53,7 +65,32 @@ export class TranscriptionCdkStack extends cdk.Stack {
             behaviors: [{ isDefaultBehavior: true }],
           },
         ],
+        viewerCertificate: cloudfront.ViewerCertificate.fromAcmCertificate(
+          certificate,
+          {
+            aliases: [subDomain], // Your subdomain name
+          }
+        ),
       }
     )
+
+    // Route 53 DNS Zone
+    const hostedZone = route53.HostedZone.fromHostedZoneAttributes(
+      this,
+      "MyHostedZone",
+      {
+        hostedZoneId: hostZoneId,
+        zoneName: domain, // Your domain name
+      }
+    )
+
+    // Create a record set for the subdomain
+    new route53.ARecord(this, "SubdomainRecord", {
+      zone: hostedZone,
+      recordName: subDomain, // Your subdomain
+      target: route53.RecordTarget.fromAlias(
+        new targets.CloudFrontTarget(distribution)
+      ),
+    })
   }
 }
