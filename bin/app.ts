@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import "source-map-support/register"
 import * as cdk from "aws-cdk-lib"
-import { TranscriptionCdkStack } from "../lib/transcription-cdk-stack"
-import { AcmCdkStack } from "../lib/acm-cdk-stack"
+import { MainStack } from "../lib/main-stack"
+import { AcmStack } from "../lib/acm-stack"
 import * as dotenv from "dotenv"
 dotenv.config()
 
@@ -13,21 +13,14 @@ const domain = process.env.DOMAIN ?? ""
 
 const app = new cdk.App()
 
-const acmCdk = new AcmCdkStack(
-  app,
-  "acm-cdk-stack",
-  domain,
-  subDomain,
-  hostedZoneId,
-  {
-    env: { region: "us-east-1" },
-    crossRegionReferences: true,
-  }
-)
+const acmCdk = new AcmStack(app, "AcmStack", domain, subDomain, hostedZoneId, {
+  env: { region: "us-east-1" },
+  crossRegionReferences: true,
+})
 
-new TranscriptionCdkStack(
+new MainStack(
   app,
-  "transcription-cdk-stack",
+  "MainStack",
   domain,
   subDomain,
   hostedZoneId,
