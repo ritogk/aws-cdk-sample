@@ -6,6 +6,7 @@ import {
   aws_iam as iam,
   aws_route53 as route53,
   aws_certificatemanager as acm,
+  aws_cloudfront_origins,
 } from "aws-cdk-lib"
 import * as targets from "aws-cdk-lib/aws-route53-targets"
 
@@ -50,34 +51,72 @@ export class TranscriptionCdkStack extends cdk.Stack {
     })
     bucket.addToResourcePolicy(bucketPolicy)
 
-    // cloudnfrontを作成してバケットと紐付ける。
-    // https://qiita.com/piz032/items/789c60700d0573b925fd
-    const distribution = new cloudfront.CloudFrontWebDistribution(
+    // // cloudnfrontを作成してバケットと紐付ける。
+    // // https://qiita.com/piz032/items/789c60700d0573b925fd
+    // const distribution = new cloudfront.CloudFrontWebDistribution(
+    //   this,
+    //   `cloudfront-${id}`,
+    //   {
+    //     originConfigs: [
+    //       {
+    //         s3OriginSource: {
+    //           s3BucketSource: bucket,
+    //           originAccessIdentity: oai,
+    //         },
+    //         behaviors: [{ isDefaultBehavior: true }],
+    //       },
+    //     ],
+    //     viewerCertificate: cloudfront.ViewerCertificate.fromAcmCertificate(
+    //       certificate,
+    //       {
+    //         aliases: [subDomain], // Your subdomain name
+    //       }
+    //     ),
+    //   }
+    // )
+
+    const headersPolicy = new cloudfront.ResponseHeadersPolicy(
       this,
-      `cloudfront-${id}`,
+      `xxxx-cf-header-policy-${id}`,
       {
-        originConfigs: [
-          {
-            s3OriginSource: {
-              s3BucketSource: bucket,
-              originAccessIdentity: oai,
+        customHeadersBehavior: {
+          customHeaders: [
+            {
+              header: "Cross-Origin-Opener-Policy",
+              value: "same-origin",
+              override: false,
             },
-            behaviors: [{ isDefaultBehavior: true }],
-          },
-        ],
-        viewerCertificate: cloudfront.ViewerCertificate.fromAcmCertificate(
-          certificate,
-          {
-            aliases: [subDomain], // Your subdomain name
-          }
-        ),
+            {
+              header: "Cross-Origin-Embedder-Policy",
+              value: "require-corp",
+              override: false,
+            },
+          ],
+        },
+      }
+    )
+
+    const distribution2 = new cloudfront.Distribution(
+      this,
+      `xxxx-cf-dist-${id}`,
+      {
+        defaultRootObject: "index.html",
+        defaultBehavior: {
+          origin: new aws_cloudfront_origins.S3Origin(bucket, {
+            originAccessIdentity: oai,
+          }),
+          // viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          responseHeadersPolicy: headersPolicy,
+        },
+        certificate: certificate,
+        domainNames: [subDomain],
       }
     )
 
     // Route 53 DNS Zone
     const hostedZone = route53.HostedZone.fromHostedZoneAttributes(
       this,
-      "MyHostedZone",
+      `MyHostedZone-${id}`,
       {
         hostedZoneId: hostZoneId,
         zoneName: domain, // Your domain name
@@ -85,11 +124,11 @@ export class TranscriptionCdkStack extends cdk.Stack {
     )
 
     // Create a record set for the subdomain
-    new route53.ARecord(this, "SubdomainRecord", {
+    new route53.ARecord(this, `SubdomainRecord-${id}`, {
       zone: hostedZone,
       recordName: subDomain, // Your subdomain
       target: route53.RecordTarget.fromAlias(
-        new targets.CloudFrontTarget(distribution)
+        new targets.CloudFrontTarget(distribution2)
       ),
     })
   }
